@@ -1,39 +1,54 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <errno.h>
+#include <dirent.h>
 
-#define MAX_TITLE      200
-#define MAX_AUTHORS    200
-#define MAX_YEAR       4
-#define MAX_PATH       64
-#define MAX_ARG_SIZE   512
-#define FIFO_SERVER    "/tmp/dserver_fifo"
+#define FIFO_SERVER "/tmp/docindex_server_fifo"
+#define MAX_DOCUMENTS 1000
+#define MAX_TITLE 200
+#define MAX_AUTHORS 200
+#define MAX_YEAR 4
+#define MAX_PATH 64
+#define MAX_KEY 16
+#define RESPONSE_SIZE 1024
+#define MAX_CACHE 50
 
-// Define command types that the client can send.
 typedef enum {
-    CMD_ADD,         // -a "title" "authors" "year" "path"
-    CMD_QUERY,       // -c "key"
-    CMD_REMOVE,      // -d "key"
-    CMD_LINE_COUNT,  // -l "key" "keyword"
-    CMD_SEARCH,      // -s "keyword" [nr_processes]
-    CMD_SHUTDOWN     // -f
+    CMD_ADD,
+    CMD_QUERY,
+    CMD_REMOVE,
+    CMD_LINE_COUNT,
+    CMD_SEARCH,
+    CMD_SHUTDOWN
 } CommandType;
 
-// Message structure sent from client to server.
+typedef struct {
+    int id;
+    char title[MAX_TITLE+1];
+    char authors[MAX_AUTHORS+1];
+    char year[MAX_YEAR+1];
+    char path[MAX_PATH+1];
+} DocumentMeta;
+
 typedef struct {
     CommandType command;
-    char client_fifo[256];  // Client FIFO path for response.
-    char args[MAX_ARG_SIZE]; // Arguments as a single string (fields separated by a known delimiter, e.g., '|')
+    char client_fifo[256];
+    char args[512];
 } Message;
 
-// Structure to store document meta-information.
 typedef struct {
-    int id;                           // Unique document identifier
-    char title[MAX_TITLE + 1];
-    char authors[MAX_AUTHORS + 1];
-    char year[MAX_YEAR + 1];
-    char path[MAX_PATH + 1];
-} DocumentMeta;
+    DocumentMeta doc;
+    time_t last_accessed;
+} CacheEntry;
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-// Here you can declare functions used by the server for each operation.
+void send_response(const char *client_fifo, const char *response);
 void handle_add(Message *msg);
 void handle_query(Message *msg);
 void handle_remove(Message *msg);
