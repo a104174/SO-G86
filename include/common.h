@@ -14,14 +14,14 @@
 #include <dirent.h>
 
 #define FIFO_SERVER "/tmp/docindex_server_fifo"
-#define MAX_DOCUMENTS 1000
+#define MAX_DOCUMENTS 2500
 #define MAX_TITLE 200
 #define MAX_AUTHORS 200
 #define MAX_YEAR 4
 #define MAX_PATH 64
 #define MAX_KEY 16
 #define RESPONSE_SIZE 1024
-#define MAX_CACHE 50
+#define MAX_CACHE 500
 
 typedef enum {
     CMD_ADD,
@@ -47,8 +47,8 @@ typedef struct {
 } Message;
 
 typedef struct {
-    DocumentMeta doc;
-    time_t last_accessed;
+    int id;
+    DocumentMeta meta;
 } CacheEntry;
 
 #endif
