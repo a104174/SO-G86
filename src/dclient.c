@@ -20,8 +20,12 @@ int main(int argc, char *argv[]) {
 
     // Create unique FIFO for responses
     char client_fifo[256];
-    snprintf(client_fifo, sizeof(client_fifo), "/tmp/docindex_%d_fifo", getpid());
-    strncpy(msg.client_fifo, client_fifo, sizeof(msg.client_fifo));
+    if (snprintf(client_fifo, sizeof(client_fifo), "/tmp/docindex_%d_fifo", getpid()) >= sizeof(client_fifo)) {
+        fprintf(stderr, "Error: client FIFO path too long\n");
+        exit(EXIT_FAILURE);
+    }
+    strncpy(msg.client_fifo, client_fifo, sizeof(msg.client_fifo) - 1);
+    msg.client_fifo[sizeof(msg.client_fifo) - 1] = '\0';
     
     if (mkfifo(client_fifo, 0666) == -1 && errno != EEXIST) {
         perror("mkfifo");
@@ -31,19 +35,41 @@ int main(int argc, char *argv[]) {
     // Parse command
     if (strcmp(argv[1], "-a") == 0 && argc == 6) {
         msg.command = CMD_ADD;
-        snprintf(msg.args, sizeof(msg.args), "%s|%s|%s|%s", argv[2], argv[3], argv[4], argv[5]);
+        if (snprintf(msg.args, sizeof(msg.args), "%s|%s|%s|%s", 
+                argv[2], argv[3], argv[4], argv[5]) >= sizeof(msg.args)) {
+            fprintf(stderr, "Error: Arguments too long\n");
+            unlink(client_fifo);
+            exit(EXIT_FAILURE);
+        }
     } else if (strcmp(argv[1], "-c") == 0 && argc == 3) {
         msg.command = CMD_QUERY;
-        snprintf(msg.args, sizeof(msg.args), "%s", argv[2]);
+        if (snprintf(msg.args, sizeof(msg.args), "%s", argv[2]) >= sizeof(msg.args)) {
+            fprintf(stderr, "Error: Key too long\n");
+            unlink(client_fifo);
+            exit(EXIT_FAILURE);
+        }
     } else if (strcmp(argv[1], "-d") == 0 && argc == 3) {
         msg.command = CMD_REMOVE;
-        snprintf(msg.args, sizeof(msg.args), "%s", argv[2]);
+        if (snprintf(msg.args, sizeof(msg.args), "%s", argv[2]) >= sizeof(msg.args)) {
+            fprintf(stderr, "Error: Key too long\n");
+            unlink(client_fifo);
+            exit(EXIT_FAILURE);
+        }
     } else if (strcmp(argv[1], "-l") == 0 && argc == 4) {
         msg.command = CMD_LINE_COUNT;
-        snprintf(msg.args, sizeof(msg.args), "%s|%s", argv[2], argv[3]);
+        if (snprintf(msg.args, sizeof(msg.args), "%s|%s", argv[2], argv[3]) >= sizeof(msg.args)) {
+            fprintf(stderr, "Error: Arguments too long\n");
+            unlink(client_fifo);
+            exit(EXIT_FAILURE);
+        }
     } else if (strcmp(argv[1], "-s") == 0 && (argc == 3 || argc == 4)) {
         msg.command = CMD_SEARCH;
-        snprintf(msg.args, sizeof(msg.args), argc == 4 ? "%s|%s" : "%s", argv[2], argc == 4 ? argv[3] : "");
+        if (snprintf(msg.args, sizeof(msg.args), argc == 4 ? "%s|%s" : "%s", 
+                argv[2], argc == 4 ? argv[3] : "") >= sizeof(msg.args)) {
+            fprintf(stderr, "Error: Arguments too long\n");
+            unlink(client_fifo);
+            exit(EXIT_FAILURE);
+        }
     } else if (strcmp(argv[1], "-f") == 0 && argc == 2) {
         msg.command = CMD_SHUTDOWN;
     } else {
@@ -57,7 +83,14 @@ int main(int argc, char *argv[]) {
         unlink(client_fifo);
         exit(EXIT_FAILURE);
     }
-    write(fd, &msg, sizeof(msg));
+    
+    ssize_t bytes_written = write(fd, &msg, sizeof(msg));
+    if (bytes_written != sizeof(msg)) {
+        perror("write to server FIFO");
+        close(fd);
+        unlink(client_fifo);
+        exit(EXIT_FAILURE);
+    }
     close(fd);
 
     // Get response
@@ -69,10 +102,14 @@ int main(int argc, char *argv[]) {
     }
 
     char response[RESPONSE_SIZE];
-    ssize_t n = read(fd, response, sizeof(response)-1);
+    ssize_t n = read(fd, response, sizeof(response) - 1);
     if (n > 0) {
         response[n] = '\0';
         printf("%s\n", response);
+    } else if (n == 0) {
+        fprintf(stderr, "Error: Empty response from server\n");
+    } else {
+        perror("read from client FIFO");
     }
     
     close(fd);

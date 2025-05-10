@@ -38,7 +38,6 @@ void cache_move_to_front(int index) {
 }
 
 void cache_add(int id, DocumentMeta *doc) {
-    // Evitar duplicação — já existe?
     for (int i = 0; i < cache_count; i++) {
         if (cache[i].id == id) {
             if (debug_mode) printf("[CACHE] ID %d já está na cache — não adicionado novamente\n", id);
@@ -56,7 +55,7 @@ void cache_add(int id, DocumentMeta *doc) {
     }
 
     cache[0].id = id;
-    cache[0].meta = *doc;
+    memcpy(&cache[0].meta, doc, sizeof(DocumentMeta));
     cache_count++;
 
     if (debug_mode) printf("[CACHE] ID %d adicionado\n", id);
@@ -88,13 +87,23 @@ DocumentMeta* index_query(int id) {
 
 
 void cache_export_snapshot(const char *filename) {
+    if (!filename) return;
+    
     int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd == -1) {
-        if (debug_mode) perror("[CACHE] Erro ao criar ficheiro snapshot");
+        if (debug_mode) perror("[CACHE] Error creating snapshot file");
         return;
     }
 
     char line[512];
+
+    int header_len = snprintf(line, sizeof(line), "Cache Snapshot - %d entries\n", cache_count);
+    if (write(fd, line, header_len) == -1) {
+        if (debug_mode) perror("[CACHE] Error writing header");
+        close(fd);
+        return;
+    }
+    
     for (int i = 0; i < cache_count; i++) {
         int len = snprintf(line, sizeof(line), "ID %d: %s\n", cache[i].id, cache[i].meta.title);
         write(fd, line, len);
