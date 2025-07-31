@@ -131,4 +131,4 @@ Este projeto foi desenvolvido por:
 
 - Hélder Tiago Peixoto da Cruz - A104174  
 - André Miguel Rego Trindade Pinto - A104267  
-- Rafael Airosa Pereira - A104095
+- Rafael Airosa Pereira - A...
